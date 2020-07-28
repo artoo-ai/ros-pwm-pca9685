@@ -12,13 +12,16 @@ namespace pwm_pca9685 {
 // ******** constructors ******** //
 
 PCA9685Activity::PCA9685Activity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv) :
-  nh(_nh), nh_priv(_nh_priv) {
+    nh(_nh),
+    nh_priv(_nh_priv)
+    {
+    
     ROS_INFO("initializing");
     nh_priv.param("device", param_device, (std::string)"/dev/i2c-1");
     nh_priv.param("address", param_address, (int)PCA9685_ADDRESS);
     nh_priv.param("frequency", param_frequency, (int)1600);
     nh_priv.param("frame_id", param_frame_id, (std::string)"imu");
-    
+
     // timeouts in milliseconds per channel
     nh_priv.param("timeout", param_timeout, std::vector<int>{
         5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
@@ -77,9 +80,9 @@ PCA9685Activity::PCA9685Activity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv
     uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
 
     for(int channel = 0; channel < 16; channel++) {
-      last_set_times[channel] = t;
-      last_change_times[channel] = t;
-      last_data[channel] = 0;
+        last_set_times[channel] = t;
+        last_change_times[channel] = t;
+        last_data[channel] = 0;
     }
 }
 
@@ -119,20 +122,20 @@ bool PCA9685Activity::set(uint8_t channel, uint16_t value) {
     uint16_t value_12bit = value >> 4;
     uint8_t values[4];
     if(value_12bit == 0x0FFF) { // always on
-    	values[0] = 0x10;
-    	values[1] = 0x00;
-    	values[2] = 0x00;
-    	values[3] = 0x00;
+        values[0] = 0x00;
+        values[1] = 0x10;
+        values[2] = 0x00;
+        values[3] = 0x00;
     } else if(value_12bit == 0x0000) { // always off
-    	values[0] = 0x00;
-    	values[1] = 0x00;
-    	values[2] = 0x10;
-    	values[3] = 0x00;
+        values[0] = 0x00;
+        values[1] = 0x00;
+        values[2] = 0x00;
+        values[3] = 0x00;
     } else { // PWM
-    	values[0] = 0x00;
-    	values[1] = 0x00;
-    	values[2] = (value_12bit + 1) & 0xFF;
-    	values[3] = (value_12bit + 1) >> 8;
+        values[0] = 0x00;
+        values[1] = 0x00;
+        values[2] = (value_12bit + 1) & 0xFF;
+        values[3] = ((value_12bit + 1) >> 8) & 0x0F;
     }
 
     _i2c_smbus_write_i2c_block_data(file, PCA9685_CHANNEL_0_REG + (channel * 4), 4, values);
@@ -165,21 +168,22 @@ bool PCA9685Activity::spinOnce() {
     uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
 
     if(seq++ % 10 == 0) {
-      for(int channel = 0; channel < 16; channel++) {
-        // positive timeout: timeout when no cammand is received
-        if(param_timeout[channel] > 0 && t - last_set_times[channel] > std::abs(param_timeout[channel])) {
-          set(channel, param_timeout_value[channel]);
+        for(int channel = 0; channel < 16; channel++) {
+            // positive timeout: timeout when no cammand is received
+            if(param_timeout[channel] > 0 && t - last_set_times[channel] > std::abs(param_timeout[channel])) {
+                set(channel, param_timeout_value[channel]);
+                last_data[channel]  = param_timeout_value[channel];
+            }
+            // negative timeout: timeout when value doesn't change
+            else if(param_timeout[channel] < 0 && t - last_change_times[channel] > std::abs(param_timeout[channel])) {
+                set(channel, param_timeout_value[channel]);
+                //last_data[channel]  = param_timeout_value[channel];
+            //ROS_WARN_STREAM("timeout " << channel);
+            }
+        // zero timeout: no timeout
         }
-        // negative timeout: timeout when value doesn't change
-	else if(param_timeout[channel] < 0 && t - last_change_times[channel] > std::abs(param_timeout[channel])) {
-          set(channel, param_timeout_value[channel]);
-	  ROS_WARN_STREAM("timeout " << channel);
-        }
-	// zero timeout: no timeout
-      }
     }
-
-    return true;    
+    return true;
 }
 
 bool PCA9685Activity::stop() {
@@ -189,6 +193,7 @@ bool PCA9685Activity::stop() {
 
     return true;
 }
+
 
 void PCA9685Activity::onCommand(const std_msgs::Int32MultiArrayPtr &msg) {
     ros::Time time = ros::Time::now();
@@ -200,25 +205,26 @@ void PCA9685Activity::onCommand(const std_msgs::Int32MultiArrayPtr &msg) {
     }
 
     for(int channel = 0; channel < 16; channel++) {
-      if(msg->data[channel] < 0) continue;
+        uint32_t val = msg->data[channel];
 
-      if(msg->data[channel] != last_data[channel]) {
-          last_change_times[channel] = t;
-      }
+        if(val >= 0) {
+            last_set_times[channel] = t;
 
-      if(msg->data[channel] == last_data[channel] && param_timeout[channel]) continue;
+            if(val > param_pwm_max[channel]) {
+                val = param_pwm_max[channel];
+            }
+            if(val < param_pwm_min[channel]) {
+                val = param_pwm_min[channel];
+            }
 
-      if(msg->data[channel] > param_pwm_max[channel]) {
-	  set(channel, param_pwm_max[channel]);
-      } else if(msg->data[channel] < param_pwm_min[channel]) {
-          set(channel, param_pwm_min[channel]);
-      } else {
-          set(channel, msg->data[channel]);
-      }
-      last_set_times[channel] = t;
-      last_data[channel] = msg->data[channel];
+            if(val != last_data[channel]){
+                set(channel, val);
+                last_data[channel] = val;
+                last_change_times[channel] = t;
+            }
+        }
     }
 }
 
+}//namespace pwm_pca9685
 
-}
