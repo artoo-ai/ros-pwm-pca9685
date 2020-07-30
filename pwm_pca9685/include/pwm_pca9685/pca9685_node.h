@@ -8,7 +8,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include <std_msgs/msg/Int32MultiArray.h>
+#include <std_msgs/msg/int32_multi_array.hpp>
 
 #include <linux/i2c-dev.h>
 #include <smbus_functions.h>
@@ -45,18 +45,19 @@ class PCA9685Node : public rclcpp::Node
   public:
     PCA9685Node();
 
-    bool start();
-    bool stop();
-    bool spinOnce();
+  private:
+    void check_timeouts();
 
     void onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
-    bool set(uint8_t channel, uint16_t value);
+    void set(uint8_t channel, uint16_t value);
 
-    uint64_t last_set_times[16];
-    uint64_t last_change_times[16];
+    rclcpp::Time last_set_times[16];
+    rclcpp::Time last_change_times[16];
+    //rclcpp::Duration timeout[16];
+
+
     int last_data[16];
 
-  private:
     bool reset();
 
     // class variables
@@ -67,10 +68,12 @@ class PCA9685Node : public rclcpp::Node
     std::string param_device;
     int param_address;
     int param_frequency;
-    std::vector<int> param_timeout;
-    std::vector<int> param_timeout_value;
-    std::vector<int> param_pwm_min;
-    std::vector<int> param_pwm_max;
+
+    //ros param arrays in eloquent only support char, bool, and long int
+    std::vector<long int> param_timeout;
+    std::vector<long int> param_pwm_min;
+    std::vector<long int> param_pwm_max;
+    std::vector<long int> param_timeout_value;
 
     // ROS timers
     rclcpp::TimerBase::SharedPtr timeout_timer;
@@ -78,7 +81,7 @@ class PCA9685Node : public rclcpp::Node
     // ROS publishers
 
     // ROS subscribers
-    rclcpp::Subscription<std_msgs::msg::Int32MultiArrayPtr>::SharedPtr sub_command;
+    rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr sub_command;
     
     // ROS services
 };

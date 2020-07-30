@@ -9,6 +9,7 @@
 
 
 using namespace std::chrono_literals;
+using std::placeholders::_1;
 
 // ******** constructors ******** //
 
@@ -42,15 +43,16 @@ PCA9685Node::PCA9685Node() :
         0, 0, 0, 0, 0, 0, 0, 0
     })
 {
-    ROS_INFO("initializing");
+    RCLCPP_INFO(this->get_logger(),"initializing");
 
-    this->declare_parameter<std::string>("device", param_device);
-    this->declare_parameter<int>("address", param_address);
-    this->declare_parameter<int>("frequency", param_frequency);
-    this->declare_parameter< std::vector<int> >("timeout", param_timeout);
-    this->declare_parameter< std::vector<int> >("pwm_min", param_pwm_min);
-    this->declare_parameter< std::vector<int> >("pwm_max", param_pwm_max);
-    this->declare_parameter< std::vector<int> >("timeout_value", param_timeout_value);
+    this->declare_parameter("device", param_device);
+    this->declare_parameter("address", param_address);
+    this->declare_parameter("frequency", param_frequency);
+    this->declare_parameter("timeout", param_timeout);
+    this->declare_parameter("pwm_min", param_pwm_min);
+    this->declare_parameter("pwm_max", param_pwm_max);
+    this->declare_parameter("timeout_value", param_timeout_value);
+
 
     this->get_parameter("device", param_device);
     this->get_parameter("address", param_address);
@@ -61,43 +63,66 @@ PCA9685Node::PCA9685Node() :
     this->get_parameter("timeout_value", param_timeout_value);
 
     if(param_timeout.size() != 16) {
-        ROS_ERROR("size of param timeout must be 16");
+        
+        RCLCPP_ERROR(this->get_logger(), "size of param timeout must be 16");
         rclcpp::shutdown();
     }
 
     if(param_timeout_value.size() != 16) {
-        ROS_ERROR("size of param timeout_value must be 16");
+        RCLCPP_ERROR(this->get_logger(), "size of param timeout_value must be 16");
         rclcpp::shutdown();
     }
 
     if(param_pwm_min.size() != 16) {
-        ROS_ERROR("size of param pwm_min must be 16");
+        RCLCPP_ERROR(this->get_logger(), "size of param pwm_min must be 16");
         rclcpp::shutdown();
     }
 
     if(param_pwm_max.size() != 16) {
-        ROS_ERROR("size of param pwm_min must be 16");
+        RCLCPP_ERROR(this->get_logger(), "size of param pwm_min must be 16");
         rclcpp::shutdown();
     }
 
     if(param_address < 0 || param_address > 127) {
-        ROS_ERROR("param address must be between 0 and 127 inclusive");
+        RCLCPP_ERROR(this->get_logger(), "param address must be between 0 and 127 inclusive");
         rclcpp::shutdown();
     }
 
     if(param_frequency <= 0) {
-        ROS_ERROR("param frequency must be positive");
+        RCLCPP_ERROR(this->get_logger(), "param frequency must be positive");
         rclcpp::shutdown();
     }
 
-    rclcpp::Time time = rclcpp::Time::now();
-    uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
+    auto t = this->now();
 
     for(int channel = 0; channel < 16; channel++) {
         last_set_times[channel] = t;
         last_change_times[channel] = t;
+        //timeout[channel] = std::chrono::milliseconds(param_timeout[channel]);
         last_data[channel] = 0;
     }
+
+
+    RCLCPP_INFO(this->get_logger(),"starting");
+
+    if(!sub_command)
+    {
+        sub_command = this->create_subscription<std_msgs::msg::Int32MultiArray>(
+            "command", 1, std::bind(&PCA9685Node::onCommand, this, _1));
+    }
+
+    file = open(param_device.c_str(), O_RDWR);
+    if(ioctl(file, I2C_SLAVE, param_address) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "i2c device open failed");
+        rclcpp::shutdown();
+    }
+
+    if(!reset()) {
+        RCLCPP_ERROR(this->get_logger(), "chip reset and setup failed");
+        rclcpp::shutdown();
+    }
+    
+    timeout_timer = create_wall_timer(100ms, std::bind(&PCA9685Node::check_timeouts, this));
 }
 
 // ******** private methods ******** //
@@ -124,7 +149,7 @@ bool PCA9685Node::reset()
     return true;
 }
 
-bool PCA9685Node::set(uint8_t channel, uint16_t value)
+void PCA9685Node::set(uint8_t channel, uint16_t value)
 {
     uint16_t value_12bit = value >> 4;
     uint8_t values[4];
@@ -150,39 +175,11 @@ bool PCA9685Node::set(uint8_t channel, uint16_t value)
 
 // ******** public methods ******** //
 
-bool PCA9685Node::start()
-{
-    ROS_INFO("starting");
-
-    if(!sub_command)
-    {
-        sub_command = this->create_subscription<std_msgs::msg::String>(
-            "command", 1, std::bind(&PCA9685Node::onCommand, this, _1));
-    }
-
-    file = open(param_device.c_str(), O_RDWR);
-    if(ioctl(file, I2C_SLAVE, param_address) < 0) {
-        ROS_ERROR("i2c device open failed");
-        return false;
-    }
-
-    if(!reset()) {
-        ROS_ERROR("chip reset and setup failed");
-        return false;
-    }
-    
-    timeout_timer = create_wall_timer(100ms, std::bind(&PCA9685Node::check_timeouts, this));
-
-    return true;
-}
-
 void PCA9685Node::check_timeouts()
 {
-    
-    rclcpp::Time time = rclcpp::Time::now();
-    uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
+    auto t = this->now();
 
-    rclcpp::Duration = 
+    //rclcpp::Duration = 
 
     for(int channel = 0; channel < 16; channel++) {
         // positive timeout: timeout when no command is received
@@ -200,29 +197,18 @@ void PCA9685Node::check_timeouts()
     }
 }
 
-bool PCA9685Node::stop()
-{
-    ROS_INFO("stopping");
-
-    if(sub_command) sub_command.shutdown();
-
-    return true;
-}
-
 
 void PCA9685Node::onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
 {
-    rclcpp::Time time = rclcpp::Time::now();
-    uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
-
+    auto t = this->now();
 
     if(msg->data.size() != 16) {
-        ROS_ERROR("array is not have a size of 16");
+        RCLCPP_ERROR(this->get_logger(), "array is not have a size of 16");
         return;
     }
 
     for(int channel = 0; channel < 16; channel++) {
-        uint32_t val = msg->data[channel];
+        int val = msg->data[channel];
 
         if(val >= 0) {
             last_set_times[channel] = t;
