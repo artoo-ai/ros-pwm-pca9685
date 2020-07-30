@@ -1,23 +1,25 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(pwm_pca9685)
 
-add_compile_options(-std=c++11 -li2c)
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs std_msgs)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
-catkin_package(INCLUDE_DIRS include)
+add_compile_options(-li2c)
 
-include_directories(include ${catkin_INCLUDE_DIRS})
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 
 add_executable(pca9685_node src/pca9685_activity.cpp src/pca9685_node.cpp)
-
-include_directories(${catkin_INCLUDE_DIRS})
-
-target_link_libraries(pca9685_node ${catkin_LIBRARIES})
+ament_target_dependencies(rclcpp std_msgs)
 
 install(TARGETS pca9685_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+DESTINATION lib/${PROJECT_NAME})
 
+ament_package(CONFIG_EXTRAS)

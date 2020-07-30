@@ -5,78 +5,93 @@
  * and which handles all ROS duties.
  */
 
-#include "pwm_pca9685/pca9685_activity.h"
+#include <pwm_pca9685/pca9685_activity.h>
 
 namespace pwm_pca9685 {
 
+using namespace std::chrono_literals;
+
 // ******** constructors ******** //
 
-PCA9685Activity::PCA9685Activity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv) :
-    nh(_nh),
-    nh_priv(_nh_priv)
-    {
-    
-    ROS_INFO("initializing");
-    nh_priv.param("device", param_device, (std::string)"/dev/i2c-1");
-    nh_priv.param("address", param_address, (int)PCA9685_ADDRESS);
-    nh_priv.param("frequency", param_frequency, (int)1600);
-    nh_priv.param("frame_id", param_frame_id, (std::string)"imu");
-
+pwm_pca9685::pwm_pca9685() : 
+    // node name
+    Node("pwm_pca9685"),
+    // linux i2c device file
+    param_device("/dev/i2c-1"),
+    // i2c accress of the pca9685
+    param_address((int)PCA9685_ADDRESS),
+    // pwm frequency
+    param_frequency((int)1600),
     // timeouts in milliseconds per channel
-    nh_priv.param("timeout", param_timeout, std::vector<int>{
+    param_timeout({
         5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
         5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000
-    });
-
+    }),
     // minimum pwm value per channel
-    nh_priv.param("pwm_min", param_pwm_min, std::vector<int>{
+    param_pwm_min({
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0
-    });
-
+    }),
     // maximum pwm value per channel
-    nh_priv.param("pwm_max", param_pwm_max, std::vector<int>{
+    param_pwm_max({
         65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
         65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535
-    });
-
+    }),
     // default pwm value per channel after timeout is reached
-    nh_priv.param("timeout_value", param_timeout_value, std::vector<int>{
+    param_timeout_value({
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0
-    });
+    })
+{
+    ROS_INFO("initializing");
+
+    this->declare_parameter<std::string>("device", param_device);
+    this->declare_parameter<int>("address", param_address);
+    this->declare_parameter<int>("frequency", param_frequency);
+    this->declare_parameter< std::vector<int> >("timeout", param_timeout);
+    this->declare_parameter< std::vector<int> >("pwm_min", param_pwm_min);
+    this->declare_parameter< std::vector<int> >("pwm_max", param_pwm_max);
+    this->declare_parameter< std::vector<int> >("timeout_value", param_timeout_value);
+
+    this->get_parameter("device", param_device);
+    this->get_parameter("address", param_address);
+    this->get_parameter("frequency", param_frequency);
+    this->get_parameter("timeout", param_timeout);
+    this->get_parameter("pwm_min", param_pwm_min);
+    this->get_parameter("pwm_max", param_pwm_max);
+    this->get_parameter("timeout_value", param_timeout_value);
 
     if(param_timeout.size() != 16) {
         ROS_ERROR("size of param timeout must be 16");
-        ros::shutdown();
+        rclcpp::shutdown();
     }
 
     if(param_timeout_value.size() != 16) {
         ROS_ERROR("size of param timeout_value must be 16");
-        ros::shutdown();
+        rclcpp::shutdown();
     }
 
     if(param_pwm_min.size() != 16) {
         ROS_ERROR("size of param pwm_min must be 16");
-        ros::shutdown();
+        rclcpp::shutdown();
     }
 
     if(param_pwm_max.size() != 16) {
         ROS_ERROR("size of param pwm_min must be 16");
-        ros::shutdown();
+        rclcpp::shutdown();
     }
 
     if(param_address < 0 || param_address > 127) {
         ROS_ERROR("param address must be between 0 and 127 inclusive");
-        ros::shutdown();
+        rclcpp::shutdown();
     }
 
     if(param_frequency <= 0) {
         ROS_ERROR("param frequency must be positive");
-        ros::shutdown();
+        rclcpp::shutdown();
     }
 
-    ros::Time time = ros::Time::now();
+    rclcpp::Time time = rclcpp::Time::now();
     uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
 
     for(int channel = 0; channel < 16; channel++) {
@@ -88,27 +103,19 @@ PCA9685Activity::PCA9685Activity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv
 
 // ******** private methods ******** //
 
-bool PCA9685Activity::reset() {
-    int i = 0;
-
-    // reset
-    _i2c_smbus_write_byte_data(file, PCA9685_MODE1_REG, 0b10000000);
-    ros::Duration(0.500).sleep();
-
+bool pwm_pca9685::reset()
+{
     // set frequency
     uint8_t prescale = (uint8_t)(25000000.0 / 4096.0 / param_frequency + 0.5);
 
+    // XXX need to wait beween writes, wait on clock, not ros (sim) time
+
+    _i2c_smbus_write_byte_data(file, PCA9685_MODE1_REG, 0b10000000); // reset
+
     _i2c_smbus_write_byte_data(file, PCA9685_MODE1_REG, 0b00010000); // sleep
-    ros::Duration(0.025).sleep();
-
     _i2c_smbus_write_byte_data(file, PCA9685_PRESCALE_REG, prescale); // set prescale
-    ros::Duration(0.025).sleep();
-
     _i2c_smbus_write_byte_data(file, PCA9685_MODE2_REG, 0x04); // outdrv
-    ros::Duration(0.025).sleep();
-
     _i2c_smbus_write_byte_data(file, PCA9685_MODE1_REG, 0xA1); // un-sleep
-    ros::Duration(0.025).sleep();
 
     _i2c_smbus_write_byte_data(file, PCA9685_CHANNEL_ALL_REG, 0);
     _i2c_smbus_write_byte_data(file, PCA9685_CHANNEL_ALL_REG + 1, 0);
@@ -118,7 +125,8 @@ bool PCA9685Activity::reset() {
     return true;
 }
 
-bool PCA9685Activity::set(uint8_t channel, uint16_t value) {
+bool pwm_pca9685::set(uint8_t channel, uint16_t value)
+{
     uint16_t value_12bit = value >> 4;
     uint8_t values[4];
     if(value_12bit == 0x0FFF) { // always on
@@ -143,10 +151,15 @@ bool PCA9685Activity::set(uint8_t channel, uint16_t value) {
 
 // ******** public methods ******** //
 
-bool PCA9685Activity::start() {
+bool pwm_pca9685::start()
+{
     ROS_INFO("starting");
 
-    if(!sub_command) sub_command = nh.subscribe("command", 1, &PCA9685Activity::onCommand, this);
+    if(!sub_command)
+    {
+        sub_command = this->create_subscription<std_msgs::msg::String>(
+            "command", 1, std::bind(&pwm_pca9685::onCommand, this, _1));
+    }
 
     file = open(param_device.c_str(), O_RDWR);
     if(ioctl(file, I2C_SLAVE, param_address) < 0) {
@@ -158,35 +171,38 @@ bool PCA9685Activity::start() {
         ROS_ERROR("chip reset and setup failed");
         return false;
     }
+    
+    timeout_timer = create_wall_timer(100ms, std::bind(&pwm_pca9685::check_timeouts, this));
 
     return true;
 }
 
-bool PCA9685Activity::spinOnce() {
-    ros::spinOnce();
-    ros::Time time = ros::Time::now();
+void pwm_pca9685::check_timeouts()
+{
+    
+    rclcpp::Time time = rclcpp::Time::now();
     uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
 
-    if(seq++ % 10 == 0) {
-        for(int channel = 0; channel < 16; channel++) {
-            // positive timeout: timeout when no cammand is received
-            if(param_timeout[channel] > 0 && t - last_set_times[channel] > std::abs(param_timeout[channel])) {
-                set(channel, param_timeout_value[channel]);
-                last_data[channel]  = param_timeout_value[channel];
-            }
-            // negative timeout: timeout when value doesn't change
-            else if(param_timeout[channel] < 0 && t - last_change_times[channel] > std::abs(param_timeout[channel])) {
-                set(channel, param_timeout_value[channel]);
-                //last_data[channel]  = param_timeout_value[channel];
+    rclcpp::Duration = 
+
+    for(int channel = 0; channel < 16; channel++) {
+        // positive timeout: timeout when no command is received
+        if(param_timeout[channel] > 0 && t - last_set_times[channel] > std::abs(param_timeout[channel])) {
+            set(channel, param_timeout_value[channel]);
+            last_data[channel]  = param_timeout_value[channel]; // last data needs to be updated beacuse the channels are only changed if the value changes
             //ROS_WARN_STREAM("timeout " << channel);
-            }
-        // zero timeout: no timeout
+        }
+        // negative timeout: timeout when value doesn't change
+        else if(param_timeout[channel] < 0 && t - last_change_times[channel] > std::abs(param_timeout[channel])) {
+            set(channel, param_timeout_value[channel]);
+            //last_data[channel]  = param_timeout_value[channel];   // if last_data is updated, the channel will exit timeout on the next unchanged command
+            //ROS_WARN_STREAM("timeout " << channel);
         }
     }
-    return true;
 }
 
-bool PCA9685Activity::stop() {
+bool pwm_pca9685::stop()
+{
     ROS_INFO("stopping");
 
     if(sub_command) sub_command.shutdown();
@@ -195,9 +211,11 @@ bool PCA9685Activity::stop() {
 }
 
 
-void PCA9685Activity::onCommand(const std_msgs::Int32MultiArrayPtr &msg) {
-    ros::Time time = ros::Time::now();
+void pwm_pca9685::onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
+{
+    rclcpp::Time time = rclcpp::Time::now();
     uint64_t t = 1000 * (uint64_t)time.sec + (uint64_t)time.nsec / 1e6;
+
 
     if(msg->data.size() != 16) {
         ROS_ERROR("array is not have a size of 16");
@@ -216,7 +234,7 @@ void PCA9685Activity::onCommand(const std_msgs::Int32MultiArrayPtr &msg) {
             if(val < param_pwm_min[channel]) {
                 val = param_pwm_min[channel];
             }
-
+            // XXX this would make more sense with more explicit state variables instead of relying on implicit relationships
             if(val != last_data[channel]){
                 set(channel, val);
                 last_data[channel] = val;
@@ -226,5 +244,12 @@ void PCA9685Activity::onCommand(const std_msgs::Int32MultiArrayPtr &msg) {
     }
 }
 
-}//namespace pwm_pca9685
+} // namespace pwm_pca9685
 
+
+int main(int argc, char *argv[]) {
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<pwm_pca9685>());
+    rclcpp::shutdown();
+    return 0;
+}

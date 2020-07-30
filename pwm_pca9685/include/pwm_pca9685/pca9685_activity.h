@@ -1,15 +1,15 @@
 #ifndef _pca9685_activity_dot_h
 #define _pca9685_activity_dot_h
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include <std_msgs/Int32.h>
-#include <std_msgs/Int32MultiArray.h>
+#include <std_msgs/msg/Int32.h>
+#include <std_msgs/msg/Int32MultiArray.h>
 
 #include <linux/i2c-dev.h>
 #include <smbus_functions.h>
@@ -42,15 +42,16 @@
 
 namespace pwm_pca9685 {
 
-class PCA9685Activity {
+class pwm_pca9685 : public rclcpp::Node
+{
   public:
-    PCA9685Activity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv);
+    pwm_pca9685();
 
     bool start();
     bool stop();
     bool spinOnce();
 
-    void onCommand(const std_msgs::Int32MultiArrayPtr& msg);
+    void onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
     bool set(uint8_t channel, uint16_t value);
 
     uint64_t last_set_times[16];
@@ -64,12 +65,7 @@ class PCA9685Activity {
     uint32_t seq = 0;
     int file;
 
-    // ROS node handles
-    ros::NodeHandle nh;
-    ros::NodeHandle nh_priv;
-
     // ROS parameters
-    std::string param_frame_id;
     std::string param_device;
     int param_address;
     int param_frequency;
@@ -78,11 +74,14 @@ class PCA9685Activity {
     std::vector<int> param_pwm_min;
     std::vector<int> param_pwm_max;
 
+    // ROS timers
+    rclcpp::TimerBase::SharedPtr timeout_timer;
+
     // ROS publishers
 
     // ROS subscribers
-    ros::Subscriber sub_command;
-
+    rclcpp::Subscription<std_msgs::msg::Int32MultiArrayPtr>::SharedPtr sub_command;
+    
     // ROS services
 };
 
