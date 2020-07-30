@@ -145,7 +145,7 @@ static inline __s32 _i2c_smbus_read_block_data(int file, __u8 command,
 	else {
 		for (i = 1; i <= data.block[0]; i++)
 			values[i-1] = data.block[i];
-			return data.block[0];
+		return data.block[0];
 	}
 }
 
