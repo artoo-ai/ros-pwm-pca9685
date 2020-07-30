@@ -16,6 +16,10 @@ using std::placeholders::_1;
 PCA9685Node::PCA9685Node() : 
     // node name
     Node("PCA9685Node"),
+    timeout_duration({
+        0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms,
+        0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms
+    }),
     // linux i2c device file
     param_device("/dev/i2c-1"),
     // i2c accress of the pca9685
@@ -93,23 +97,9 @@ PCA9685Node::PCA9685Node() :
         rclcpp::shutdown();
     }
 
-    auto t = this->now();
-
-    for(int channel = 0; channel < 16; channel++) {
-        last_set_times[channel] = t;
-        last_change_times[channel] = t;
-        //timeout[channel] = std::chrono::milliseconds(param_timeout[channel]);
-        last_data[channel] = 0;
-    }
-
 
     RCLCPP_INFO(this->get_logger(),"starting");
 
-    if(!sub_command)
-    {
-        sub_command = this->create_subscription<std_msgs::msg::Int32MultiArray>(
-            "command", 1, std::bind(&PCA9685Node::onCommand, this, _1));
-    }
 
     file = open(param_device.c_str(), O_RDWR);
     if(ioctl(file, I2C_SLAVE, param_address) < 0) {
@@ -122,7 +112,25 @@ PCA9685Node::PCA9685Node() :
         rclcpp::shutdown();
     }
     
-    timeout_timer = create_wall_timer(100ms, std::bind(&PCA9685Node::check_timeouts, this));
+
+    auto t = this->now();
+    for(int channel = 0; channel < 16; channel++) {
+        last_update_time[channel] = t;
+        timeout_duration[channel] = std::chrono::milliseconds(param_timeout[channel]);
+        timed_out[channel] = true;  //default all channels to a designated safe value
+        timeout_changes[channel] = param_timeout[channel] < 0;  //timeout resets after command >0 or after change <0
+        last_data[channel] = param_timeout_value[channel];
+        set(channel, sanitiseChannel(channel, param_timeout_value[channel]));
+    }
+
+
+    timeout_cb_timer = create_wall_timer(100ms, std::bind(&PCA9685Node::check_timeouts, this));
+
+    if(!sub_command)
+    {
+        sub_command = this->create_subscription<std_msgs::msg::Int32MultiArray>(
+            "command", 1, std::bind(&PCA9685Node::onCommand, this, _1));
+    }
 }
 
 // ******** private methods ******** //
@@ -151,26 +159,31 @@ bool PCA9685Node::reset()
 
 void PCA9685Node::set(uint8_t channel, uint16_t value)
 {
-    uint16_t value_12bit = value >> 4;
-    uint8_t values[4];
-    if(value_12bit == 0x0FFF) { // always on
-        values[0] = 0x00;
-        values[1] = 0x10;
-        values[2] = 0x00;
-        values[3] = 0x00;
-    } else if(value_12bit == 0x0000) { // always off
-        values[0] = 0x00;
-        values[1] = 0x00;
-        values[2] = 0x00;
-        values[3] = 0x00;
-    } else { // PWM
-        values[0] = 0x00;
-        values[1] = 0x00;
-        values[2] = (value_12bit + 1) & 0xFF;
-        values[3] = ((value_12bit + 1) >> 8) & 0x0F;
-    }
+    if(channel_value[channel] != value)
+    {
+        uint16_t value_12bit = value >> 4;
+        uint8_t values[4];
+        if(value_12bit == 0x0FFF) { // always on
+            values[0] = 0x00;
+            values[1] = 0x10;
+            values[2] = 0x00;
+            values[3] = 0x00;
+        } else if(value_12bit == 0x0000) { // always off
+            values[0] = 0x00;
+            values[1] = 0x00;
+            values[2] = 0x00;
+            values[3] = 0x00;
+        } else { // PWM
+            // XXX add phase offset
+            values[0] = 0x00;
+            values[1] = 0x00;
+            values[2] = (value_12bit + 1) & 0xFF;
+            values[3] = ((value_12bit + 1) >> 8) & 0x0F;
+        }
 
-    _i2c_smbus_write_i2c_block_data(file, PCA9685_CHANNEL_0_REG + (channel * 4), 4, values);
+        _i2c_smbus_write_i2c_block_data(file, PCA9685_CHANNEL_0_REG + (channel * 4), 4, values);
+        channel_value[channel] = value;
+    }
 }
 
 // ******** public methods ******** //
@@ -179,20 +192,15 @@ void PCA9685Node::check_timeouts()
 {
     auto t = this->now();
 
-    //rclcpp::Duration = 
-
     for(int channel = 0; channel < 16; channel++) {
-        // positive timeout: timeout when no command is received
-        if(param_timeout[channel] > 0 && t - last_set_times[channel] > std::abs(param_timeout[channel])) {
-            set(channel, param_timeout_value[channel]);
-            last_data[channel]  = param_timeout_value[channel]; // last data needs to be updated beacuse the channels are only changed if the value changes
-            //ROS_WARN_STREAM("timeout " << channel);
-        }
-        // negative timeout: timeout when value doesn't change
-        else if(param_timeout[channel] < 0 && t - last_change_times[channel] > std::abs(param_timeout[channel])) {
-            set(channel, param_timeout_value[channel]);
-            //last_data[channel]  = param_timeout_value[channel];   // if last_data is updated, the channel will exit timeout on the next unchanged command
-            //ROS_WARN_STREAM("timeout " << channel);
+        if(!timed_out[channel])
+        {
+            if(t - last_update_time[channel] > timeout_duration[channel])
+            {
+                set(channel, param_timeout_value[channel]);
+                RCLCPP_WARN(this->get_logger(), "channel %d timeout", channel);
+                timed_out[channel] = true;
+            }
         }
     }
 }
@@ -203,30 +211,49 @@ void PCA9685Node::onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
     auto t = this->now();
 
     if(msg->data.size() != 16) {
-        RCLCPP_ERROR(this->get_logger(), "array is not have a size of 16");
+        RCLCPP_ERROR(this->get_logger(), "array does not have a size of 16");
         return;
     }
 
     for(int channel = 0; channel < 16; channel++) {
-        int val = msg->data[channel];
+        if(msg->data[channel] >= 0) // ignore negative channels
+        {
+            bool command_changed = (last_data[channel] != msg->data[channel]);
+            last_data[channel] = msg->data[channel];
 
-        if(val >= 0) {
-            last_set_times[channel] = t;
 
-            if(val > param_pwm_max[channel]) {
-                val = param_pwm_max[channel];
+            // check if channels should recover from timeout
+            if(timed_out[channel])
+            {
+                if( (!timeout_changes) || command_changed)
+                {
+                    RCLCPP_WARN(this->get_logger(), "channel %d recovered from timeout", channel);
+                    timed_out[channel] = false;
+                }
             }
-            if(val < param_pwm_min[channel]) {
-                val = param_pwm_min[channel];
-            }
-            // XXX this would make more sense with more explicit state variables instead of relying on implicit relationships
-            if(val != last_data[channel]){
-                set(channel, val);
-                last_data[channel] = val;
-                last_change_times[channel] = t;
+
+
+            if( !timed_out[channel] )
+            {
+                set(channel, sanitiseChannel(channel, msg->data[channel]));
+                // does this constitute a meaningful update for timeout purposes?
+                if( (!timeout_changes) || command_changed)
+                {
+                    last_update_time[channel] = t;
+                }
             }
         }
     }
+}
+uint16_t PCA9685Node::sanitiseChannel(uint8_t channel, int val)
+{
+    if(val > param_pwm_max[channel]) {
+        val = param_pwm_max[channel];
+    }
+    if(val < param_pwm_min[channel]) {
+        val = param_pwm_min[channel];
+    }
+    return (uint16_t) val;
 }
 
 

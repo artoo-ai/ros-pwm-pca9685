@@ -44,39 +44,42 @@ class PCA9685Node : public rclcpp::Node
 {
   public:
     PCA9685Node();
+    // XXX destructor should set the channels to timeout defaults
 
   private:
     void check_timeouts();
 
     void onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
     void set(uint8_t channel, uint16_t value);
+    uint16_t sanitiseChannel(uint8_t channel, int val);
 
-    rclcpp::Time last_set_times[16];
-    rclcpp::Time last_change_times[16];
-    //rclcpp::Duration timeout[16];
+    rclcpp::Time last_update_time[16];  // the last time an event counted as an update to a channel
+    rclcpp::Duration timeout_duration[16];  // the length of the timeout for each channel
 
-
-    int last_data[16];
+    bool timeout_changes [16];  //true requires a channel command to change in order to recover the timeout
+    bool timed_out [16]; //channel is timed out
+    //uint16_t channel_offset[16];  //delay before cycle start (used to stagger pwm phases)
+    uint16_t channel_value[16];  // the value currently written to the chip channel (only used by set())
+    int32_t last_data[16];  //the last command received (not sanitised) changes indicate signs of life upstream
 
     bool reset();
 
     // class variables
-    uint32_t seq = 0;
-    int file;
+    int file; // i2c device file handle
 
     // ROS parameters
     std::string param_device;
     int param_address;
     int param_frequency;
-
-    //ros param arrays in eloquent only support char, bool, and long int
     std::vector<long int> param_timeout;
     std::vector<long int> param_pwm_min;
     std::vector<long int> param_pwm_max;
     std::vector<long int> param_timeout_value;
+    //ros param arrays in eloquent only support char, bool, and long int
+    // XXX ros2 supports parameter updates as callbacks
 
     // ROS timers
-    rclcpp::TimerBase::SharedPtr timeout_timer;
+    rclcpp::TimerBase::SharedPtr timeout_cb_timer;
 
     // ROS publishers
 
