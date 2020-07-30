@@ -16,7 +16,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
-add_executable(pca9685_node src/pca9685_activity.cpp src/pca9685_node.cpp)
+add_executable(pca9685_node src/pca9685_node.cpp)
 ament_target_dependencies(rclcpp std_msgs)
 
 install(TARGETS pca9685_node

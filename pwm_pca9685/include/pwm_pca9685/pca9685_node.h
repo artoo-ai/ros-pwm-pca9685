@@ -1,5 +1,5 @@
-#ifndef _pca9685_activity_dot_h
-#define _pca9685_activity_dot_h
+#ifndef _pca9685_node_dot_h
+#define _pca9685_node_dot_h
 
 #include <rclcpp/rclcpp.hpp>
 #include <cstdlib>
@@ -8,7 +8,6 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include <std_msgs/msg/Int32.h>
 #include <std_msgs/msg/Int32MultiArray.h>
 
 #include <linux/i2c-dev.h>
@@ -40,12 +39,11 @@
 #define PCA9685_PRESCALE_REG 0xFE
 #define PCA9685_TESTMODE_REG 0xFF
 
-namespace pwm_pca9685 {
 
-class pwm_pca9685 : public rclcpp::Node
+class PCA9685Node : public rclcpp::Node
 {
   public:
-    pwm_pca9685();
+    PCA9685Node();
 
     bool start();
     bool stop();
@@ -85,6 +83,4 @@ class pwm_pca9685 : public rclcpp::Node
     // ROS services
 };
 
-}
-
-#endif // _pca9685_activity_dot_h
+#endif // _pca9685_node_dot_h
