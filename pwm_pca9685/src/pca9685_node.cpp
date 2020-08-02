@@ -21,7 +21,7 @@ PCA9685Node::PCA9685Node() :
         0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms
     }),
     // linux i2c device file
-    param_device("/dev/i2c-1"),
+    param_device("/dev/i2c-0"),
     // i2c accress of the pca9685
     param_address((int)PCA9685_ADDRESS),
     // pwm frequency
@@ -38,8 +38,8 @@ PCA9685Node::PCA9685Node() :
     }),
     // maximum pwm value per channel
     param_pwm_max({
-        65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535,
-        65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535
+        4095, 4095, 4095, 4095, 4095, 4095, 4095, 4095,
+        4095, 4095, 4095, 4095, 4095, 4095, 4095, 4095
     }),
     // default pwm value per channel after timeout is reached
     param_timeout_value({
@@ -161,24 +161,23 @@ void PCA9685Node::set(uint8_t channel, uint16_t value)
 {
     if(channel_value[channel] != value)
     {
-        uint16_t value_12bit = value >> 4;
         uint8_t values[4];
-        if(value_12bit == 0x0FFF) { // always on
+        if(value == 0x0FFF) { // always on
             values[0] = 0x00;
             values[1] = 0x10;
             values[2] = 0x00;
             values[3] = 0x00;
-        } else if(value_12bit == 0x0000) { // always off
+        } else if(value == 0x0000) { // always off
             values[0] = 0x00;
             values[1] = 0x00;
             values[2] = 0x00;
-            values[3] = 0x00;
+            values[3] = 0x10;
         } else { // PWM
             // XXX add phase offset
             values[0] = 0x00;
             values[1] = 0x00;
-            values[2] = (value_12bit + 1) & 0xFF;
-            values[3] = ((value_12bit + 1) >> 8) & 0x0F;
+            values[2] = (value) & 0xFF;
+            values[3] = ((value) >> 8) & 0x0F;
         }
 
         _i2c_smbus_write_i2c_block_data(file, PCA9685_CHANNEL_0_REG + (channel * 4), 4, values);
