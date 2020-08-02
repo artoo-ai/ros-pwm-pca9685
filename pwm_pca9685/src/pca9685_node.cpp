@@ -1,8 +1,8 @@
-/* pca9685_activity.cpp
+/* pca9685_node.cpp
  * Author: Dheera Venkatraman <dheera@dheera.net>
+ * Author: Brett Downing <brettrd@brettrd.com>
  *
- * Defines a PCA9685 class, constructed with node handles
- * and which handles all ROS duties.
+ * Defines a PCA9685 class, constructed with composable nodes
  */
 
 #include <pwm_pca9685/pca9685_node.h>

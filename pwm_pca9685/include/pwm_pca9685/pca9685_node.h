@@ -44,7 +44,6 @@ class PCA9685Node : public rclcpp::Node
 {
   public:
     PCA9685Node();
-    // XXX destructor should set the channels to timeout defaults
 
   private:
     void check_timeouts();
@@ -71,13 +70,12 @@ class PCA9685Node : public rclcpp::Node
     std::string param_device;
     int param_address;
     int param_frequency;
-    std::vector<long long int> param_timeout;
-    std::vector<long long int> param_pwm_min;
-    std::vector<long long int> param_pwm_max;
-    std::vector<long long int> param_timeout_value;
-    //ros param arrays in eloquent only support char, bool, and long int
-    // XXX in armv7, param arrays only support char, bool, and long long int
-    // XXX ros2 supports parameter updates as callbacks
+    std::vector<int64_t> param_timeout;
+    std::vector<int64_t> param_pwm_min;
+    std::vector<int64_t> param_pwm_max;
+    std::vector<int64_t> param_timeout_value;
+    
+    // XXX ros2 supports parameter updates as callbacks and we should use them
 
     // ROS timers
     rclcpp::TimerBase::SharedPtr timeout_cb_timer;
