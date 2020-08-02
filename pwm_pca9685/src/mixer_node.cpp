@@ -45,13 +45,13 @@ mixer_node::mixer_node() :
     //mixer geometry msg axis to pwm channel (padded to 16 channels with zeroes)
     //default is a simple two-motor pwm diff drive
     param_mixer({
-        {"bias",    {   0,     0,      0,      0}},
-        {"x",       {2048, -2048,   2048,  -2048}},
-        {"y",       {   0,     0,      0,      0}},
-        {"z",       {   0,     0,      0,      0}},
-        {"yaw",     {2048, -2048,  -2048,   2048}},
-        {"pitch",   {   0,     0,       0,      0}},
-        {"roll",    {   0,     0,      0,      0}}
+        {"bias",    {   0,     0,     0,     0}},
+        {"x",       {2048, -2048,  2048, -2048}},
+        {"y",       {   0,     0,     0,     0}},
+        {"z",       {   0,     0,     0,     0}},
+        {"roll",    {   0,     0,     0,     0}},
+        {"pitch",   {   0,     0,     0,     0}},
+        {"yaw",     {2048, -2048, -2048,  2048}}
     }),
     //channel mask, padded to 16 channels with false
     param_mask({true, true, true, true})
@@ -65,7 +65,7 @@ mixer_node::mixer_node() :
 
 
     //sanitise the parameters
-    std::vector<std::string> channel_names = {"bias", "x", "y", "z", "yaw", "pitch", "roll"};
+    std::vector<std::string> channel_names = {"bias", "x", "y", "z", "roll", "pitch", "yaw"};
     for( std::string chan : channel_names)
     {
         // insert a map key if it doesn't already exist
@@ -100,9 +100,9 @@ void mixer_node::onCommand(const geometry_msgs::msg::Twist::SharedPtr msg)
             accumulator += param_mixer.at("x")[i] * msg->linear.x;
             accumulator += param_mixer.at("y")[i] * msg->linear.y;
             accumulator += param_mixer.at("z")[i] * msg->linear.z;
-            accumulator += param_mixer.at("yaw")[i] * msg->angular.x;
+            accumulator += param_mixer.at("roll")[i] * msg->angular.x;
             accumulator += param_mixer.at("pitch")[i] * msg->angular.y;
-            accumulator += param_mixer.at("roll")[i] * msg->angular.z;
+            accumulator += param_mixer.at("yaw")[i] * msg->angular.z;
 
             if(accumulator < 0) accumulator = 0;    // pca9685_node uses negative values to handle channel masking, stop at zero
 
