@@ -225,7 +225,7 @@ void PCA9685Node::onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
             // check if channels should recover from timeout
             if(timed_out[channel])
             {
-                if( (!timeout_changes) || command_changed)
+                if( (!timeout_changes[channel]) || command_changed)
                 {
                     RCLCPP_WARN(this->get_logger(), "channel %d recovered from timeout", channel);
                     timed_out[channel] = false;
@@ -237,7 +237,7 @@ void PCA9685Node::onCommand(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
             {
                 set(channel, sanitiseChannel(channel, msg->data[channel]));
                 // does this constitute a meaningful update for timeout purposes?
-                if( (!timeout_changes) || command_changed)
+                if( (!timeout_changes[channel]) || command_changed)
                 {
                     last_update_time[channel] = t;
                 }

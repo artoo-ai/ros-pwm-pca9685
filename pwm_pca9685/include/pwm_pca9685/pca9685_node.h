@@ -71,11 +71,12 @@ class PCA9685Node : public rclcpp::Node
     std::string param_device;
     int param_address;
     int param_frequency;
-    std::vector<long int> param_timeout;
-    std::vector<long int> param_pwm_min;
-    std::vector<long int> param_pwm_max;
-    std::vector<long int> param_timeout_value;
+    std::vector<long long int> param_timeout;
+    std::vector<long long int> param_pwm_min;
+    std::vector<long long int> param_pwm_max;
+    std::vector<long long int> param_timeout_value;
     //ros param arrays in eloquent only support char, bool, and long int
+    // XXX in armv7, param arrays only support char, bool, and long long int
     // XXX ros2 supports parameter updates as callbacks
 
     // ROS timers
@@ -85,7 +86,7 @@ class PCA9685Node : public rclcpp::Node
 
     // ROS subscribers
     rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr sub_command;
-    
+
     // ROS services
 };
 
