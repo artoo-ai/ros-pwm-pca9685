@@ -120,7 +120,7 @@ PCA9685Node::PCA9685Node() :
         timed_out[channel] = true;  //default all channels to a designated safe value
         timeout_changes[channel] = param_timeout[channel] < 0;  //timeout resets after command >0 or after change <0
         last_data[channel] = param_timeout_value[channel];
-        set(channel, sanitiseChannel(channel, param_timeout_value[channel]));
+        set(channel, param_timeout_value[channel]); // timeout ignores min/max, this allows servos to disable.
     }
 
 
@@ -196,6 +196,7 @@ void PCA9685Node::check_timeouts()
         {
             if(t - last_update_time[channel] > timeout_duration[channel])
             {
+                // timeout ignores min/max, this allows servos to disable.
                 set(channel, param_timeout_value[channel]);
                 RCLCPP_WARN(this->get_logger(), "channel %d timeout", channel);
                 timed_out[channel] = true;
