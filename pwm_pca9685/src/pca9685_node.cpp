@@ -23,7 +23,7 @@ PCA9685Node::PCA9685Node() :
     // linux i2c device file
     param_device("/dev/i2c-0"),
     // i2c accress of the pca9685
-    param_address((int)PCA9685_ADDRESS),
+    param_address((int)PCA9685_ADDRESS_BASE),
     // pwm frequency
     param_frequency((int)1600),
     // timeouts in milliseconds per channel
@@ -87,8 +87,8 @@ PCA9685Node::PCA9685Node() :
         rclcpp::shutdown();
     }
 
-    if(param_address < 0 || param_address > 127) {
-        RCLCPP_ERROR(this->get_logger(), "param address must be between 0 and 127 inclusive");
+    if(param_address < PCA9685_ADDRESS_BASE || param_address > PCA9685_ADDRESS_MAX) {
+        RCLCPP_ERROR(this->get_logger(), "param address must be between %d and %d inclusive", PCA9685_ADDRESS_BASE, PCA9685_ADDRESS_MAX);
         rclcpp::shutdown();
     }
 
@@ -111,7 +111,7 @@ PCA9685Node::PCA9685Node() :
         RCLCPP_ERROR(this->get_logger(), "chip reset and setup failed");
         rclcpp::shutdown();
     }
-    
+
 
     auto t = this->now();
     for(int channel = 0; channel < 16; channel++) {
