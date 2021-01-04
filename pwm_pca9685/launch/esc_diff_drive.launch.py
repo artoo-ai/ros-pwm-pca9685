@@ -18,8 +18,8 @@ def generate_launch_description():
             mixer_config, launch.substitutions.TextSubstitution(text='.config.yaml')]),
 
         launch_ros.actions.Node(
-            package='pwm_pca9685', node_executable='mixer_node',
-            node_name='mixer_node',
+            package='pwm_pca9685', executable='mixer_node',
+            name='mixer_node',
             remappings=[
                     ('/cmd_vel', '/cmd_vel'),
                     ('/command', '/command'),
@@ -28,8 +28,8 @@ def generate_launch_description():
         ),
 
         launch_ros.actions.Node(
-            package='pwm_pca9685', node_executable='pca9685_node',
-            node_name='pwm_node',
+            package='pwm_pca9685', executable='pca9685_node',
+            name='pwm_node',
             remappings=[
                     ('/command', '/command'),
             ],

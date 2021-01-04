@@ -7,11 +7,11 @@ mixer_node:
       z:            [     0.0,     0.0,   202.0]
     mask:           [  true,  true,  true]
 
-pca9586_node:
+pwm_node:
   ros__parameters:
     device: "/dev/i2c-1"
     frequency: 50
-    pwm_min:        [   205,   205,   205]
-    pwm_max:        [   409,   409,   409]
-    timeout_value:  [     0,     0,     0]
+    pwm_min:        [   205,   205,   205, 0, 0,0,0,0, 0,0,0,0, 0,0,0,0]
+    pwm_max:        [   409,   409,   409, 0, 0,0,0,0, 0,0,0,0, 0,0,0,0]
+    timeout_value:  [     0,     0,     0, 0, 0,0,0,0, 0,0,0,0, 0,0,0,0]
 
