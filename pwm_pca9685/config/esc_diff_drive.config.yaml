@@ -1,0 +1,17 @@
+mixer_node:
+  ros__parameters:
+    mixer: # defining three channels for three motors
+      bias:         [   307.0,   307.0,   307.0]
+      x:            [   202.0,   202.0,     0.0]
+      yaw:          [   202.0,  -202.0,     0.0]
+      z:            [     0.0,     0.0,   202.0]
+    mask:           [  true,  true,  true]
+
+pca9586_node:
+  ros__parameters:
+    device: "/dev/i2c-1"
+    frequency: 50
+    pwm_min:        [   205,   205,   205]
+    pwm_max:        [   409,   409,   409]
+    timeout_value:  [     0,     0,     0]
+

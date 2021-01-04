@@ -28,4 +28,10 @@ ament_target_dependencies(pca9685_node rclcpp std_msgs)
 install(TARGETS pca9685_node mixer_node
 DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY
+  config
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package(CONFIG_EXTRAS)
