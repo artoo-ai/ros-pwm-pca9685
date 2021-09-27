@@ -1,4 +1,6 @@
-# ROS driver for NXP Semiconductor PCA9685 I2C PWM chip
+# ROS2 driver for NXP Semiconductor PCA9685 I2C PWM chip
+This is a ROS2 port of https://github.com/dheera/ros-pwm-pca9685
+
 
 This is a ROS node for the PCA9685. The chip is notably used in the following products:
 
