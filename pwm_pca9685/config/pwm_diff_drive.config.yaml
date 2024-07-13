@@ -9,8 +9,8 @@ mixer_node:
 
 pwm_node:
   ros__parameters:
-    device: "/dev/i2c-8"
-    frequency: 50
+    device: "/dev/i2c-1"
+    frequency: 1600
     pwm_min:        [    0,    0,    0,    0,    0,    0 ,0,0, 0,0,0,0, 0,0,0,0]
     pwm_max:        [ 4095, 4095, 4095, 4095, 4095, 4095 ,0,0, 0,0,0,0, 0,0,0,0]
     timeout_value:  [    0,    0,    0,    0,    0,    0 ,0,0, 0,0,0,0, 0,0,0,0]

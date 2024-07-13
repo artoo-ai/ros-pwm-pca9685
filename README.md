@@ -15,6 +15,28 @@ There should be no dependencies besides libi2c-dev.
 
 There is a simple mixer_node that allows you to map geometry_msgs/msg/twist to PWM channels
 
+# Build
+```bash
+cd ~/ros2_ws/src
+git clone https://github.com/artoo-ai/ros-pwm-pca9685.git
+cd ~/ros2_ws
+source /opt/ros/humble/install/setup.bash
+colcon build
+```
+
+
+# Run Package
+```bash
+source install/setup.bash
+ros2 launch pwm_pca9685 esc_diff_drive.launch.py
+or
+ros2 launch pwm_pca9685 esc_diff_drive.launch.py mixer_config:=your_custom_config mixer_config_filepath:=/path/to/your_config.yaml
+```
+
+# Joy Stick Controls
+Hold down `X` and press up and down on the numpad joystick.
+Hold down 'R' and press up and down on the numpad joystick for double speed.
+
 # PCA9685_node
 ## Parameters:
 
