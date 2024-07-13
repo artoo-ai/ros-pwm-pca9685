@@ -11,7 +11,7 @@ def generate_launch_description():
 
     return launch.LaunchDescription([
 
-        launch.actions.DeclareLaunchArgument('mixer_config', default_value='esc_diff_drive'),
+        launch.actions.DeclareLaunchArgument('mixer_config', default_value='pwm_diff_drive'),
         launch.actions.DeclareLaunchArgument('mixer_config_filepath', default_value=[
             launch.substitutions.TextSubstitution(text=os.path.join(
                 get_package_share_directory('pwm_pca9685'), 'config', '')),

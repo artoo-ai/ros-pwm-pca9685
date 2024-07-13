@@ -1,6 +1,8 @@
 # ROS2 driver for NXP Semiconductor PCA9685 I2C PWM chip
-This is a ROS2 port of https://github.com/dheera/ros-pwm-pca9685
+This is a ROS2 port of https://github.com/dheera/ros-pwm-pca9685 and https://github.com/BrettRD/ros-pwm-pca9685:ros2
 
+The default setup is for a PCA9865 which is connected to a Nvidia Jetson Xavier AGX.  So the device
+is /dev/i2c-8 and the frequency is 50Hz.
 
 This is a ROS node for the PCA9685. The chip is notably used in the following products:
 
@@ -16,9 +18,9 @@ There is a simple mixer_node that allows you to map geometry_msgs/msg/twist to P
 # PCA9685_node
 ## Parameters:
 
-* **device** (string) -- the path to the i2c device. Default is /dev/i2c-1. Use i2cdetect in the i2c-tools package to find out which bus your device is on.
+* **device** (string) -- the path to the i2c device. Default is /dev/i2c-8. Use i2cdetect in the i2c-tools package to find out which bus your device is on.
 * **address** (int) -- the i2c address of the PCA9685. Default is 0x40.
-* **frequency** (int) -- PWM frequency in Hz. Default is 1600.
+* **frequency** (int) -- PWM frequency in Hz. Default is 50.
 * **timeout** (list of ints) -- List of 16 integers corresponding to timeouts in milliseconds for each channel. If any particular channel is not updated in this time, that channel will be set to the corresponding value in **timeout_value** until another update is received. Defaults to `[ 5000, 5000, ... ]`, i.e. each channel timeouts after 5 seconds if no updates are published.
 * **timeout_value** (list of ints) -- The value each channel will be set to upon timeout. Defaults to `[ 0, 0, ... ]`, i.e. each channel is set to 0 upon timeout.
 * **pwm_min** (list of ints) -- The minimum PWM value for each channel. Defaults to `[ 0, 0, ... ]`. If a command lower than the minimum PWM value is issued, the PWM value will be set to param_min, with the exception of a -1 command, which designates no update (see below).
