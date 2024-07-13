@@ -53,13 +53,13 @@ def generate_launch_description():
             executable='teleop_node',
             name='teleop_twist_joy_node',
             parameters=[{
-                'axis_linear': 1,  # Typically, 1 is the left stick up/down axis for linear motion
-                'axis_angular': 0,  # Typically, 0 is the left stick left/right axis for angular motion
+                'axis_linear': 0,  # Typically, 1 is the left stick up/down axis for linear motion
+                'axis_angular': 1,  # Typically, 0 is the left stick left/right axis for angular motion
                 'scale_linear': 0.7,
                 'scale_linear_turbo': 1.5,
                 'scale_angular': 0.4,
-                'enable_button': 2,  # Button to enable teleoperation (e.g., X button on joystick)
-                'enable_turbo_button': 5,   # Button to enable turbo mode (e.g., B button on joystick)
+                'enable_button': 7,  # Button to enable teleoperation (e.g., X button on joystick)
+                'enable_turbo_button': 6,   # Button to enable turbo mode (e.g., B button on joystick)
                 'dev': '/dev/input/js0'  # Specify the device file for the joystick
             }],
             remappings=[

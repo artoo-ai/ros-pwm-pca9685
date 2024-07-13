@@ -34,8 +34,13 @@ ros2 launch pwm_pca9685 esc_diff_drive.launch.py mixer_config:=your_custom_confi
 ```
 
 # Joy Stick Controls
-Hold down `X` and press up and down on the numpad joystick.
-Hold down 'R' and press up and down on the numpad joystick for double speed.
+Hold down `2R` and press up and down on the numpad joystick.
+Hold down `2L` and press up and down on the numpad joystick for double speed.
+
+```bash
+sudo apt install joystick
+jstest /dev/input/js0
+```
 
 # PCA9685_node
 ## Parameters:
